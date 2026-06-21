@@ -74,6 +74,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 
   void disconnect() {
+    ApiClient.instance.clearConfig();
     state = SettingsState();
   }
 }

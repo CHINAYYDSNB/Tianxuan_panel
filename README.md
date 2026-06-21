@@ -1,79 +1,11 @@
 # Tianxuan — 1Panel 第三方管理工具
 
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
-
-> 🚀 基于 Flutter 的 1Panel 服务器管理面板客户端。
->
-> 支持 Android / iOS / Web 全平台。
-
-## 快速开始
-
-### 前提
-- Flutter SDK 3.12+
-- 一台运行 1Panel v2.x 的服务器
-- 在 1Panel 后台生成 API Key（面板设置 → API 接口）
-
-### 克隆 & 运行
-
-```bash
-git clone https://github.com/CHINAYYDSNB/Tianxuan_panel.git
-cd Tianxuan_panel
-flutter pub get
-```
-
-**Android APK:**
-```bash
-flutter build apk --release
-# 安装到手机, 打开输入你的 1Panel 地址 + API Key
-```
-
-**iOS (需要 macOS):**
-```bash
-flutter build ios --release
-```
-
-**Web (浏览器直连, 有 CORS 限制):**
-```bash
-flutter run -d chrome
-# 如果 API 跨域报错, 用下面同源服务器方案
-```
-
-**Web (同源服务器, 推荐开发用):**
-```bash
-# 1. 构建
-flutter build web --release
-
-# 2. 设置你的 1Panel 地址
-export API_HOST=你的服务器IP   # Linux/macOS
-set API_HOST=你的服务器IP      # Windows
-
-# 3. 启动同源开发服务器
-node server.mjs
-
-# 4. 浏览器访问 http://localhost:25568
-# 5. 登录页填入 localhost:25568 + 你的 API Key
-```
-
-## 许可证
-
-本项目采用 **GNU Affero General Public License v3.0 (AGPLv3)** 开源。
-
-- ✅ **个人/团队使用** — 免费，随意改
-- ❌ **商业闭源使用** — 需购买商业授权
-- 💖 **捐赠** — 支持作者继续开发
-
-### 商业授权
-
-如需将本项目集成到商业产品中（闭源发布、企业内部使用等），请联系作者获取商业授权。
-
----
-
 ## 项目分工
 
 | 角色 | 负责 | 目录 |
 |------|------|------|
 | **逻辑开发** | API 封装、数据模型、状态管理 | `api/` `models/` `providers/` |
-| **UI 开发** | 页面布局、交互、组件 | `pages/` `widgets/` |
+| **UI 开发 (你)** | 页面布局、交互、组件 | `pages/` `widgets/` |
 
 ---
 
@@ -82,18 +14,6 @@ node server.mjs
 ```bash
 flutter pub get    # 安装依赖
 flutter run        # 启动（需连接设备/模拟器）
-```
-
-### Web 开发（CORS 绕过）
-
-```bash
-# 构建
-flutter build web --release
-
-# 启动同源开发服务器（同时托管 Flutter + 代理 API）
-node server.mjs
-# 访问 http://localhost:25568
-# 登录时填入 localhost:25568 和你的 API Key
 ```
 
 ## 架构总览

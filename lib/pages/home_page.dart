@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dashboard/dashboard_page.dart';
+import 'file/file_list_page.dart';
 import 'website/website_list_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -14,6 +15,7 @@ class _HomePageState extends State<HomePage> {
 
   final _pages = const [
     DashboardPage(),
+    FileListPage(),
     WebsiteListPage(),
   ];
 
@@ -29,6 +31,11 @@ class _HomePageState extends State<HomePage> {
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
             label: '概览',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.folder_outlined),
+            selectedIcon: Icon(Icons.folder),
+            label: '文件',
           ),
           NavigationDestination(
             icon: Icon(Icons.language_outlined),

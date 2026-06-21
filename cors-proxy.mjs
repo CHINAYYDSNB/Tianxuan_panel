@@ -6,7 +6,7 @@
 import http from 'http';
 
 const PORT = process.env.PORT || 25568;
-const API_HOST = process.env.API_HOST || 'YOUR_1PANEL_IP';
+const API_HOST = process.env.API_HOST || 'your.1panel.server.ip';
 const API_PORT = process.env.API_PORT || 25567;
 
 const server = http.createServer((req, res) => {

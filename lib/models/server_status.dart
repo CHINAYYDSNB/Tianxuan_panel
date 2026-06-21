@@ -1,4 +1,13 @@
 class ServerStatus {
+  // 服务器信息
+  final String hostname;
+  final String platform;
+  final String kernelVersion;
+  final String cpuModelName;
+  final int cpuCores;
+  final String ipv4Address;
+
+  // 资源使用
   final double cpuUsage;
   final double memoryUsage;
   final double diskUsage;
@@ -10,6 +19,12 @@ class ServerStatus {
   final String diskUsed;
 
   ServerStatus({
+    this.hostname = '',
+    this.platform = '',
+    this.kernelVersion = '',
+    this.cpuModelName = '',
+    this.cpuCores = 0,
+    this.ipv4Address = '',
     required this.cpuUsage,
     required this.memoryUsage,
     required this.diskUsage,
@@ -66,6 +81,12 @@ class ServerStatus {
     final disk0 = diskData.isNotEmpty ? (diskData[0] as Map<String, dynamic>? ?? {}) : <String, dynamic>{};
 
     return ServerStatus(
+      hostname: json['hostname']?.toString() ?? '',
+      platform: json['platform']?.toString() ?? '',
+      kernelVersion: json['kernelVersion']?.toString() ?? '',
+      cpuModelName: json['cpuModelName']?.toString() ?? '',
+      cpuCores: (json['cpuCores'] as num?)?.toInt() ?? 0,
+      ipv4Address: json['ipv4Address']?.toString() ?? '',
       cpuUsage: parse(info['cpuUsedPercent']),
       memoryUsage: parse(info['memoryUsedPercent']),
       diskUsage: parse(disk0['usedPercent']),

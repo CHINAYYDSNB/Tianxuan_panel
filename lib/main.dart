@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'providers/settings_provider.dart';
+import 'services/storage_service.dart';
 import 'pages/home_page.dart';
 import 'pages/login_page.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await StorageService.instance.migrateIfNeeded();
   runApp(const ProviderScope(child: OnePanelApp()));
 }
 

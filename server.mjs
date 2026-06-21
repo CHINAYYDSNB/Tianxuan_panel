@@ -3,16 +3,32 @@
 // Serves Flutter web build, proxies /api/v2/* to 1Panel server
 //
 // Usage:
-//   node server.mjs                          # uses env vars or defaults
-//   API_HOST=your.server node server.mjs     # custom 1Panel server
+//   node server.mjs
 //
+// Environment variables (or create .env file):
+//   API_HOST   — 1Panel server IP (default: placeholder)
+//   API_PORT   — 1Panel server port (default: 25567)
+//   PORT       — dev server port   (default: 25568)
+//   API_KEY    — API Key for auto-login (optional, omit to use login page)
+
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
 
-const PORT = process.env.PORT || 25568;
-const API_HOST = process.env.API_HOST || 'YOUR_1PANEL_IP';
-const API_PORT = process.env.API_PORT || 25567;
+// Load .env file if exists
+const envPath = path.resolve(import.meta.dirname, '.env');
+if (fs.existsSync(envPath)) {
+  const lines = fs.readFileSync(envPath, 'utf-8').split('\n');
+  for (const line of lines) {
+    const m = line.match(/^\s*(\w+)=(.*)$/);
+    if (m) process.env[m[1]] = m[1].trim();
+  }
+}
+
+const PORT       = parseInt(process.env.PORT || '25568', 10);
+const API_HOST   = process.env.API_HOST || 'your.1panel.server.ip';
+const API_PORT   = parseInt(process.env.API_PORT || '25567', 10);
+const API_KEY    = process.env.API_KEY || '';
 const STATIC_DIR = path.resolve(import.meta.dirname, 'build', 'web');
 
 const MIME = {
@@ -33,7 +49,6 @@ const MIME = {
 
 function serveStatic(req, res) {
   let filePath = req.url === '/' ? '/index.html' : req.url.split('?')[0];
-  // SPA fallback — serve index.html for unknown paths
   const fullPath = path.join(STATIC_DIR, filePath);
   if (!fs.existsSync(fullPath) || fs.statSync(fullPath).isDirectory()) {
     filePath = '/index.html';
@@ -42,7 +57,15 @@ function serveStatic(req, res) {
   const ext = path.extname(filePath);
   const ct = MIME[ext] || 'application/octet-stream';
   try {
-    const content = fs.readFileSync(absPath);
+    let content = fs.readFileSync(absPath);
+    // Dev helper: inject localStorage config to skip login page
+    if (filePath === '/index.html' && API_KEY) {
+      const inject = `<script>
+localStorage.setItem('server_url','http://localhost:${PORT}');
+localStorage.setItem('api_key','${API_KEY}');
+</script>`;
+      content = Buffer.from(content.toString().replace('</head>', inject + '</head>'));
+    }
     res.writeHead(200, { 'Content-Type': ct, 'Cache-Control': 'no-cache' });
     res.end(content);
   } catch {
@@ -85,5 +108,7 @@ http.createServer((req, res) => {
   console.log(`Tianxuan app → http://localhost:${PORT}`);
   console.log(`Static: ${STATIC_DIR}`);
   console.log(`API proxy: → ${API_HOST}:${API_PORT}`);
+  if (API_KEY) console.log('Auto-login: enabled (API_KEY set)');
+  else         console.log('Auto-login: disabled (use login page)');
   console.log('\nOpen http://localhost:' + PORT + ' in your browser.');
 });

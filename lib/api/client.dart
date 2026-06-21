@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/storage_service.dart';
 
 class ApiClient {
   late Dio _dio;
@@ -34,31 +34,49 @@ class ApiClient {
   String _fullUrl(String path) => '$_serverUrl/api/v2$path';
 
   Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
-    final url = prefs.getString('server_url') ?? '';
-    final key = prefs.getString('api_key') ?? '';
+    final url = await StorageService.instance.getServerUrl() ?? '';
+    final key = await StorageService.instance.getApiKey() ?? '';
     if (url.isNotEmpty && key.isNotEmpty) {
       _configure(url, key);
     }
   }
 
   Future<bool> hasConfig() async {
-    final prefs = await SharedPreferences.getInstance();
-    return (prefs.getString('server_url') ?? '').isNotEmpty &&
-           (prefs.getString('api_key') ?? '').isNotEmpty;
+    final url = await StorageService.instance.getServerUrl() ?? '';
+    final key = await StorageService.instance.getApiKey() ?? '';
+    return url.isNotEmpty && key.isNotEmpty;
   }
 
   Future<void> saveConfig(String serverUrl, String apiKey) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('server_url', serverUrl);
-    await prefs.setString('api_key', apiKey);
+    await StorageService.instance.saveServerUrl(serverUrl);
+    await StorageService.instance.saveApiKey(apiKey);
     _configure(serverUrl, apiKey);
+  }
+
+  Future<void> clearConfig() async {
+    await StorageService.instance.deleteServerUrl();
+    await StorageService.instance.deleteApiKey();
+    _serverUrl = '';
+    _authInterceptor.setApiKey('');
   }
 
   Future<Response> get(String path, {Map<String, dynamic>? params}) {
     final url = _fullUrl(path);
     debugPrint('GET $url');
     return _dio.get(url, queryParameters: params);
+  }
+
+  /// GET with binary response (for file downloads)
+  Future<Response<List<int>>> getBytes(String path, {Map<String, dynamic>? params}) async {
+    final url = _fullUrl(path);
+    debugPrint('GET $url (bytes)');
+    final bytesDio = Dio();
+    bytesDio.options.baseUrl = _dio.options.baseUrl;
+    bytesDio.options.connectTimeout = _dio.options.connectTimeout;
+    bytesDio.options.receiveTimeout = _dio.options.receiveTimeout;
+    bytesDio.options.responseType = ResponseType.bytes;
+    bytesDio.interceptors.add(_authInterceptor);
+    return bytesDio.get<List<int>>(url, queryParameters: params);
   }
 
   Future<Response> post(String path, {dynamic data}) {
@@ -83,18 +101,15 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
-    // 如果 _apiKey 为空, 尝试从 SharedPreferences 自救加载
+    // 如果 _apiKey 为空, 尝试从 StorageService 自救加载
     if (_apiKey.isEmpty) {
       try {
-        final prefs = await SharedPreferences.getInstance();
-        final key = prefs.getString('api_key') ?? '';
+        final key = await StorageService.instance.getApiKey() ?? '';
         if (key.isNotEmpty) {
           _apiKey = key;
-          debugPrint('AuthInterceptor: loaded apiKey from SharedPreferences');
+          debugPrint('AuthInterceptor: loaded apiKey from secure storage');
         }
-      } catch (_) {
-        // SharedPreferences 不可用 (测试环境等)
-      }
+      } catch (_) {}
     }
 
     if (_apiKey.isNotEmpty) {
