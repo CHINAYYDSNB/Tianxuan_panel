@@ -3,15 +3,17 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../api/file_api.dart';
 import '../../models/file_item.dart';
 import '../../providers/file_provider.dart';
+import '../../utils/downloader.dart';
 import '../../widgets/file_icon.dart';
 import 'file_editor_page.dart';
 
 class FileListPage extends ConsumerStatefulWidget {
-  const FileListPage({super.key});
+  final String? initialPath;
+
+  const FileListPage({super.key, this.initialPath});
 
   @override
   ConsumerState<FileListPage> createState() => _FileListPageState();
@@ -21,6 +23,20 @@ class _FileListPageState extends ConsumerState<FileListPage> {
   bool _showSearch = false;
   final _searchCtrl = TextEditingController();
   bool _multiSelectMode = false;
+  bool _initialPathSet = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.initialPath != null && !_initialPathSet) {
+      _initialPathSet = true;
+      // 延迟到下一帧确保 widget 树已挂载
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(currentPathProvider.notifier).state = widget.initialPath!;
+        ref.read(fileListProvider.notifier).refresh();
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -208,12 +224,10 @@ class _FileListPageState extends ConsumerState<FileListPage> {
     );
     try {
       final bytes = await FileApi.download(file.path);
-      final dir = await getApplicationDocumentsDirectory();
-      final savePath = '${dir.path}/${file.name}';
-      await File(savePath).writeAsBytes(bytes);
+      final result = await saveFile(file.name, bytes);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已保存到: $savePath (${file.formattedSize})')),
+          SnackBar(content: Text('已保存: $result (${file.formattedSize})')),
         );
       }
     } catch (e) {

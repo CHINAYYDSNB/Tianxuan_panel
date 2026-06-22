@@ -31,6 +31,8 @@ class InstalledAppDetail {
   final String appKey;
   final List<String>? appPorts;
   final Map<String, String> env;
+  final bool updateAvailable;
+  final String? latestVersion;
 
   InstalledAppDetail({
     required this.id,
@@ -44,6 +46,8 @@ class InstalledAppDetail {
     this.appKey = '',
     this.appPorts,
     this.env = const {},
+    this.updateAvailable = false,
+    this.latestVersion,
   });
 
   factory InstalledAppDetail.fromJson(Map<String, dynamic> json) {

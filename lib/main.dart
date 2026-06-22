@@ -4,6 +4,7 @@ import 'providers/settings_provider.dart';
 import 'services/storage_service.dart';
 import 'pages/home_page.dart';
 import 'pages/login_page.dart';
+// import 'pages/logto_login_page.dart'; // 暂时禁用 Logto 登录
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,18 +18,18 @@ class OnePanelApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Tianxuan',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
-      initialRoute: '/init',
-      routes: {
-        '/init': (context) => const InitPage(),
-        '/login': (context) => const LoginPage(),
-        '/home': (context) => const HomePage(),
-      },
+        title: 'Tianxuan',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          useMaterial3: true,
+        ),
+        initialRoute: '/init',
+        routes: {
+          '/init': (context) => const InitPage(),
+          '/login': (context) => const LoginPage(),
+          '/home': (context) => const HomePage(),
+        },
     );
   }
 }

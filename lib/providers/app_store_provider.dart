@@ -12,7 +12,7 @@ class AppStoreNotifier extends AsyncNotifier<List<AppStoreItem>> {
 
   Future<List<AppStoreItem>> _search() async {
     final result = await AppStoreApi.search(page: 1, pageSize: 50);
-    return result['items'] as List<AppStoreItem>;
+    return List<AppStoreItem>.from(result['items'] ?? []);
   }
 
   Future<void> refresh() async {

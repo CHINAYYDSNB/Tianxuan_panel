@@ -43,6 +43,8 @@ class StorageService {
     }
   }
 
+  bool get isWeb => _useSharedPrefs;
+
   Future<void> _delete(String key) async {
     if (_useSharedPrefs) {
       final p = await SharedPreferences.getInstance();
@@ -140,5 +142,59 @@ class StorageService {
     }
 
     await p.setBool('_migrated_v1', true);
+  }
+
+  // ─── Logto OIDC Pending (PKCE verifier + state 暂存) ───
+
+  Future<void> saveLogtoPending(String verifier, String state) async {
+    await _write('logto_pending', jsonEncode({'verifier': verifier, 'state': state}));
+  }
+
+  Future<Map<String, String>?> getLogtoPending() async {
+    final raw = await _read('logto_pending');
+    if (raw == null) return null;
+    try {
+      final m = jsonDecode(raw) as Map;
+      return {
+        'verifier': m['verifier']?.toString() ?? '',
+        'state': m['state']?.toString() ?? '',
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> clearLogtoPending() => _delete('logto_pending');
+
+  // ─── Logto OIDC Tokens ───
+
+  Future<void> saveLogtoTokens({
+    required String accessToken,
+    String refreshToken = '',
+    String idToken = '',
+    int expiresIn = 3600,
+  }) async {
+    final expiry = DateTime.now().millisecondsSinceEpoch + (expiresIn * 1000);
+    await _write('logto_at', accessToken);
+    if (refreshToken.isNotEmpty) await _write('logto_rt', refreshToken);
+    if (idToken.isNotEmpty) await _write('logto_id', idToken);
+    await _write('logto_exp', expiry.toString());
+  }
+
+  Future<String?> getLogtoAccessToken() => _read('logto_at');
+  Future<String?> getLogtoRefreshToken() => _read('logto_rt');
+  Future<String?> getLogtoIdToken() => _read('logto_id');
+  Future<bool> getLogtoTokenValid() async {
+    final exp = await _read('logto_exp');
+    if (exp == null) return false;
+    final expiry = int.tryParse(exp) ?? 0;
+    return DateTime.now().millisecondsSinceEpoch < expiry;
+  }
+
+  Future<void> deleteLogtoTokens() async {
+    await _delete('logto_at');
+    await _delete('logto_rt');
+    await _delete('logto_id');
+    await _delete('logto_exp');
   }
 }

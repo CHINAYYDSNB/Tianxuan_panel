@@ -18,7 +18,7 @@ class ContainerListNotifier extends AsyncNotifier<List<Container>> {
 
   Future<List<Container>> _fetch() async {
     final result = await ContainerApi.search(page: 1, pageSize: 50);
-    return result['items'] as List<Container>;
+    return List<Container>.from(result['items'] ?? []);
   }
 
   /// 静默刷新 — 失败保留旧数据

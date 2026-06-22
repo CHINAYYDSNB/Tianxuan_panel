@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/installed_app_provider.dart';
-import '../../models/installed_app.dart';
 
 class InstalledDetailPage extends ConsumerWidget {
   final int installId;
@@ -42,6 +41,21 @@ class InstalledDetailPage extends ConsumerWidget {
                 Text('v${app.version}',
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(color: colorScheme.onSurfaceVariant)),
+                if (app.updateAvailable) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      app.latestVersion != null
+                          ? 'v${app.latestVersion} 可用'
+                          : '可更新',
+                      style: const TextStyle(fontSize: 12, color: Colors.blue)),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 20),
@@ -92,33 +106,7 @@ class InstalledDetailPage extends ConsumerWidget {
                   ),
                 ),
               ]),
-              const SizedBox(height: 16),
             ],
-
-            // Actions
-            Text('操作', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                if (app.isRunning)
-                  _ActionBtn(
-                    icon: Icons.stop, label: '停止',
-                    color: Colors.red,
-                    onTap: () => _operate(ref, 'stop'),
-                  ),
-                if (app.isStopped)
-                  _ActionBtn(
-                    icon: Icons.play_arrow, label: '启动',
-                    color: Colors.green,
-                    onTap: () => _operate(ref, 'start'),
-                  ),
-                _ActionBtn(
-                  icon: Icons.restart_alt, label: '重启',
-                  color: Colors.orange,
-                  onTap: () => _operate(ref, 'restart'),
-                ),
-              ],
-            ),
           ],
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -138,10 +126,6 @@ class InstalledDetailPage extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  void _operate(WidgetRef ref, String op) {
-    ref.read(installedAppListProvider.notifier).operate(installId, op);
   }
 }
 
@@ -193,37 +177,6 @@ class _InfoRow extends StatelessWidget {
             child: Text(value, style: Theme.of(context).textTheme.bodySmall),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ActionBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionBtn({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ElevatedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 18),
-        label: Text(label),
-        style: ElevatedButton.styleFrom(
-          foregroundColor: color,
-          side: BorderSide(color: color.withValues(alpha: 0.5)),
-          backgroundColor: color.withValues(alpha: 0.05),
-        ),
       ),
     );
   }

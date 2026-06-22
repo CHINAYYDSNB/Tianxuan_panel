@@ -47,12 +47,18 @@ class InstalledAppApi {
   }
 
   /// Check / get update versions
+  /// Returns list of available version strings (e.g. ["8.8.0", "8.6.3"])
   static Future<List<String>> getUpdateVersions(int id) async {
     final res = await ApiClient.instance.post('/apps/installed/update/versions', data: {
       'appInstallID': id,
     });
     final data = res.data['data'];
-    if (data is List) return data.map((e) => e.toString()).toList();
+    if (data is List) {
+      return data.map((e) {
+        if (e is Map) return e['version']?.toString() ?? '';
+        return e.toString();
+      }).where((v) => v.isNotEmpty).toList();
+    }
     return [];
   }
 

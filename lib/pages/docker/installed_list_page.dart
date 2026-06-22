@@ -40,26 +40,35 @@ class InstalledListPage extends ConsumerWidget {
   }
 }
 
-class _InstalledView extends StatelessWidget {
+class _InstalledView extends ConsumerWidget {
   final List<InstalledApp> list;
 
   const _InstalledView({required this.list});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final updatableIds = ref.watch(updatableAppIdsProvider);
+
     if (list.isEmpty) return const Center(child: Text('未安装应用'));
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      itemCount: list.length,
-      itemBuilder: (ctx, i) => _InstalledTile(app: list[i]),
+    return RefreshIndicator(
+      onRefresh: () => ref.read(installedAppListProvider.notifier).refresh(),
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        itemCount: list.length,
+        itemBuilder: (ctx, i) => _InstalledTile(
+          app: list[i],
+          hasUpdate: updatableIds.contains(list[i].id),
+        ),
+      ),
     );
   }
 }
 
 class _InstalledTile extends StatelessWidget {
   final InstalledApp app;
+  final bool hasUpdate;
 
-  const _InstalledTile({required this.app});
+  const _InstalledTile({required this.app, this.hasUpdate = false});
 
   @override
   Widget build(BuildContext context) {
@@ -91,13 +100,34 @@ class _InstalledTile extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(app.name,
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w600)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(app.name,
+                            style: theme.textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600)),
+                        if (hasUpdate) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text('可更新',
+                                style: TextStyle(fontSize: 10, color: Colors.blue)),
+                          ),
+                        ],
+                      ],
+                    ),
+                    Text(app.key,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: colorScheme.onSurfaceVariant)),
+                  ],
+                ),
               ),
-              Text(app.key,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: colorScheme.onSurfaceVariant)),
               const Icon(Icons.chevron_right),
             ],
           ),

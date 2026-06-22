@@ -4,9 +4,8 @@ import '../../models/website.dart';
 import '../../providers/website_provider.dart';
 import '../../api/website_api.dart';
 import '../../api/file_api.dart';
-import '../../api/client.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import '../../utils/downloader.dart';
+import '../file/file_list_page.dart';
 // import 'package:open_file/open_file.dart'; // 添加后用于外部 App 编辑
 
 class WebsiteDetailPage extends ConsumerWidget {
@@ -170,7 +169,12 @@ class _DetailContentState extends ConsumerState<_DetailContent>
             children: [
               _OverviewTab(website: w),
               _SslTab(websiteId: w.id),
-              _LogTab(websiteId: w.id),
+              _LogTab(
+                websiteId: w.id,
+                accessLogPath: w.accessLogPath,
+                errorLogPath: w.errorLogPath,
+                sitePath: w.sitePath,
+              ),
               _BackupTab(websiteId: w.id, websiteName: w.primaryDomain),
             ],
           ),
@@ -232,10 +236,11 @@ class _DetailContentState extends ConsumerState<_DetailContent>
       );
       return;
     }
-    // Navigate to file manager with preset path
-    // TODO: use Navigator to file manager page with initialPath
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('跳转到: ${w.sitePath}')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FileListPage(initialPath: w.sitePath),
+      ),
     );
   }
 
@@ -254,20 +259,18 @@ class _DetailContentState extends ConsumerState<_DetailContent>
         return;
       }
 
-      // Save to temp file for external editing
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/${w.alias}_nginx.conf');
-      await file.writeAsString(config);
+      // Save file
+      final result = await saveTextFile('${w.alias}_nginx.conf', config);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('配置文件已保存'),
+            content: Text('已保存: $result'),
             action: SnackBarAction(
               label: '查看路径',
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(file.path)),
+                  SnackBar(content: Text(result)),
                 );
               },
             ),
@@ -497,7 +500,15 @@ class _SslTab extends ConsumerWidget {
 
 class _LogTab extends ConsumerStatefulWidget {
   final int websiteId;
-  const _LogTab({required this.websiteId});
+  final String? accessLogPath;
+  final String? errorLogPath;
+  final String? sitePath;
+  const _LogTab({
+    required this.websiteId,
+    this.accessLogPath,
+    this.errorLogPath,
+    this.sitePath,
+  });
 
   @override
   ConsumerState<_LogTab> createState() => _LogTabState();
@@ -505,14 +516,18 @@ class _LogTab extends ConsumerStatefulWidget {
 
 class _LogTabState extends ConsumerState<_LogTab> {
   String _logType = 'access';
-  Map<String, dynamic>? _logData;
   bool _loading = false;
+  bool _loadingMore = false;
+  List<String> _lines = [];
+  bool _hasMore = true;
+  int _page = 1;
+  String? _error;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       children: [
-        // Type toggle
         Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
@@ -525,68 +540,163 @@ class _LogTabState extends ConsumerState<_LogTab> {
                 selected: {_logType},
                 onSelectionChanged: (v) {
                   setState(() => _logType = v.first);
-                  _loadLog();
+                  _loadLog(reset: true);
                 },
               ),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.refresh),
-                onPressed: _loadLog,
+                onPressed: () => _loadLog(reset: true),
               ),
             ],
           ),
         ),
         const Divider(height: 1),
-
-        // Log content
         Expanded(
-          child: _loading
+          child: _loading && _lines.isEmpty
               ? const Center(child: CircularProgressIndicator())
-              : _logData == null
-                  ? const Center(child: Text('点击刷新加载日志'))
-                  : _logData!['enable'] == true
-                      ? SingleChildScrollView(
-                          padding: const EdgeInsets.all(12),
-                          child: SelectableText(
-                            _logData!['content']?.toString() ?? '',
-                            style: const TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 12,
-                            ),
+              : _error != null && _lines.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                          const SizedBox(height: 8),
+                          Text(_error!),
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: () => _loadLog(reset: true),
+                            icon: const Icon(Icons.refresh, size: 18),
+                            label: const Text('重试'),
                           ),
-                        )
-                      : Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text('日志未启用'),
-                              if (_logData!['path']?.toString() != null &&
-                                  _logData!['path'].toString().isNotEmpty)
-                                Text(
-                                  '路径: ${_logData!['path']}',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                            ],
-                          ),
-                        ),
+                        ],
+                      ),
+                    )
+                  : _lines.isEmpty
+                      ? const Center(child: Text('日志为空'))
+                      : _buildLines(),
         ),
       ],
     );
   }
 
-  Future<void> _loadLog() async {
-    setState(() => _loading = true);
-    try {
-      final data = await WebsiteApi.getLog(widget.websiteId, _logType);
-      setState(() => _logData = data);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('加载日志失败: $e')),
-        );
+  Widget _buildLines() {
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            itemCount: _lines.length + (_hasMore ? 1 : 0),
+            itemBuilder: (ctx, i) {
+              if (i == _lines.length) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Center(
+                    child: _loadingMore
+                        ? const SizedBox(width: 20, height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : TextButton.icon(
+                            onPressed: () => _loadLog(reset: false),
+                            icon: const Icon(Icons.expand_more, size: 18),
+                            label: const Text('加载更多'),
+                          ),
+                  ),
+                );
+              }
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 1),
+                child: SelectableText(_lines[i],
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 12, height: 1.4)),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  String get _filePath {
+    if (_logType == 'access') {
+      if (widget.accessLogPath != null && widget.accessLogPath!.isNotEmpty) {
+        return widget.accessLogPath!;
       }
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (widget.sitePath != null && widget.sitePath!.isNotEmpty) {
+        return '${widget.sitePath}/log/access.log';
+      }
+    } else {
+      if (widget.errorLogPath != null && widget.errorLogPath!.isNotEmpty) {
+        return widget.errorLogPath!;
+      }
+      if (widget.sitePath != null && widget.sitePath!.isNotEmpty) {
+        return '${widget.sitePath}/log/error.log';
+      }
+    }
+    return '';
+  }
+
+  Future<void> _loadLog({bool reset = true}) async {
+    if (reset) {
+      _page = 1;
+      _lines = [];
+      _error = null;
+      _hasMore = true;
+    }
+
+    // 1) Try /websites/log API
+    if (reset) {
+      setState(() => _loading = true);
+      try {
+        final data = await WebsiteApi.getLog(widget.websiteId, _logType);
+        final c = data['content']?.toString() ?? '';
+        if (c.isNotEmpty) {
+          setState(() { _lines = c.split('\n'); _loading = false; });
+          return;
+        }
+      } catch (_) {}
+    }
+
+    // 2) Try /files/preview
+    final fp = _filePath;
+    if (fp.isEmpty) {
+      setState(() { _loading = false; _error ??= '日志路径未配置'; });
+      return;
+    }
+
+    if (reset) {
+      try {
+        final item = await FileApi.preview(fp);
+        if (item.content != null && item.content!.isNotEmpty) {
+          setState(() { _lines = item.content!.split('\n'); _loading = false; });
+          return;
+        }
+      } catch (_) {}
+    }
+
+    // 3) Fallback: /files/read — 分页
+    try {
+      if (_page == 1) setState(() => _loading = true);
+      else setState(() => _loadingMore = true);
+
+      // Try path param first, then name
+      try {
+        final r = await FileApi.readByLine(fp, page: _page, pageSize: 500);
+        setState(() {
+          _lines.addAll(r.lines);
+          _hasMore = !r.end;
+          _page++;
+          _loading = false;
+          _loadingMore = false;
+        });
+        return;
+      } catch (_) {
+        // readByLine might need different params, retry with just name
+      }
+
+      setState(() { _loading = false; _loadingMore = false; });
+      if (_lines.isEmpty) _error = '无法读取日志文件';
+    } catch (e) {
+      setState(() { _loading = false; _loadingMore = false; });
+      if (_lines.isEmpty) _error = '读取失败: $e';
     }
   }
 }

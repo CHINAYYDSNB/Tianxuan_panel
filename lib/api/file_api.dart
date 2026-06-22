@@ -54,11 +54,12 @@ class FileApi {
 
   /// Read file by line (for large files)
   /// POST /files/read
-  static Future<FileLineResult> readByLine(String path, {int page = 1, int pageSize = 100}) async {
+  static Future<FileLineResult> readByLine(String path, {int page = 1, int pageSize = 100, String type = 'text'}) async {
     final res = await ApiClient.instance.post('/files/read', data: {
       'path': path,
       'page': page,
       'pageSize': pageSize,
+      'type': type,
     });
     final body = _parseBody(res);
     return FileLineResult(
