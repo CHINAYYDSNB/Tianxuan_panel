@@ -1,25 +1,64 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Unified storage backend.
 /// - Mobile: flutter_secure_storage (Android Keystore / iOS Keychain) for secrets
-/// - Web: fallback to SharedPreferences (flutter_secure_storage_web → base64)
+/// - Web: SharedPreferences (flutter_secure_storage_web may not be registered)
 class StorageService {
   StorageService._();
 
   static final _instance = StorageService._();
   static StorageService get instance => _instance;
 
-  final _secure = const FlutterSecureStorage();
+  // On web, use SharedPreferences directly since flutter_secure_storage_web
+  // may not be auto-registered. On mobile, use FlutterSecureStorage for key material.
+  static bool get _useSharedPrefs => kIsWeb;
+
+  final _secure = _useSharedPrefs ? null : const FlutterSecureStorage();
+
+  Future<void> _write(String key, String value) async {
+    if (_useSharedPrefs) {
+      final p = await SharedPreferences.getInstance();
+      // Base64 encode for consistency with flutter_secure_storage_web
+      await p.setString(key, base64Encode(utf8.encode(value)));
+    } else {
+      await _secure!.write(key: key, value: value);
+    }
+  }
+
+  Future<String?> _read(String key) async {
+    if (_useSharedPrefs) {
+      final p = await SharedPreferences.getInstance();
+      final raw = p.getString(key);
+      if (raw == null) return null;
+      try {
+        return utf8.decode(base64Decode(raw));
+      } catch (_) {
+        return raw;
+      }
+    } else {
+      return _secure!.read(key: key);
+    }
+  }
+
+  Future<void> _delete(String key) async {
+    if (_useSharedPrefs) {
+      final p = await SharedPreferences.getInstance();
+      await p.remove(key);
+    } else {
+      await _secure!.delete(key: key);
+    }
+  }
 
   // ─── API Key (sensitive, encrypted) ───
 
-  Future<void> saveApiKey(String key) => _secure.write(key: 'api_key', value: key);
+  Future<void> saveApiKey(String key) => _write('api_key', key);
 
-  Future<String?> getApiKey() => _secure.read(key: 'api_key');
+  Future<String?> getApiKey() => _read('api_key');
 
-  Future<void> deleteApiKey() => _secure.delete(key: 'api_key');
+  Future<void> deleteApiKey() => _delete('api_key');
 
   // ─── Server URL (non-sensitive) ───
 
@@ -54,15 +93,15 @@ class StorageService {
 
   /// Encrypt/store a single saved server's apiKey.
   Future<void> saveServerKey(String serverId, String apiKey) =>
-      _secure.write(key: 'srv_key_$serverId', value: apiKey);
+      _write('srv_key_$serverId', apiKey);
 
   /// Decrypt/load a single saved server's apiKey.
   Future<String?> getServerKey(String serverId) =>
-      _secure.read(key: 'srv_key_$serverId');
+      _read('srv_key_$serverId');
 
   /// Delete a single saved server's apiKey.
   Future<void> deleteServerKey(String serverId) =>
-      _secure.delete(key: 'srv_key_$serverId');
+      _delete('srv_key_$serverId');
 
   // ─── First-launch migration (SharedPreferences → secure storage) ───
 

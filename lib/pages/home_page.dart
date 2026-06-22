@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dashboard/dashboard_page.dart';
 import 'file/file_list_page.dart';
 import 'website/website_list_page.dart';
+import 'docker/docker_home_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,6 +18,7 @@ class _HomePageState extends State<HomePage> {
     DashboardPage(),
     FileListPage(),
     WebsiteListPage(),
+    DockerHomePage(),
   ];
 
   @override
@@ -41,6 +43,11 @@ class _HomePageState extends State<HomePage> {
             icon: Icon(Icons.language_outlined),
             selectedIcon: Icon(Icons.language),
             label: '网站',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.view_in_ar_outlined),
+            selectedIcon: Icon(Icons.view_in_ar),
+            label: '容器',
           ),
         ],
       ),

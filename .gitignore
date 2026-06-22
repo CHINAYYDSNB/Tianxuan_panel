@@ -56,3 +56,5 @@ backup/
 # OS
 Thumbs.db
 Desktop.ini
+*.apk
+.env

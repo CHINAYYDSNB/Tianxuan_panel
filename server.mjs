@@ -21,7 +21,7 @@ if (fs.existsSync(envPath)) {
   const lines = fs.readFileSync(envPath, 'utf-8').split('\n');
   for (const line of lines) {
     const m = line.match(/^\s*(\w+)=(.*)$/);
-    if (m) process.env[m[1]] = m[1].trim();
+    if (m) process.env[m[1]] = m[2].trim();
   }
 }
 
@@ -34,6 +34,7 @@ const STATIC_DIR = path.resolve(import.meta.dirname, 'build', 'web');
 const MIME = {
   '.html': 'text/html',
   '.js': 'application/javascript',
+  '.mjs': 'application/javascript',
   '.css': 'text/css',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -104,7 +105,7 @@ http.createServer((req, res) => {
   } else {
     serveStatic(req, res);
   }
-}).listen(PORT, '0.0.0.0', () => {
+}).listen(PORT, '127.0.0.1', () => {
   console.log(`Tianxuan app → http://localhost:${PORT}`);
   console.log(`Static: ${STATIC_DIR}`);
   console.log(`API proxy: → ${API_HOST}:${API_PORT}`);

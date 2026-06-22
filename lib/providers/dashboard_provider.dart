@@ -44,8 +44,7 @@ class ServerStatusNotifier extends AsyncNotifier<ServerStatus> {
   @override
   Future<ServerStatus> build() async {
     _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 10), (_) => _autoRefresh());
-    ref.onDispose(() => _timer?.cancel());
+    _timer = Timer.periodic(const Duration(seconds: 15), (_) => _autoRefresh());    ref.onDispose(() => _timer?.cancel());
     _lastFetchTime = DateTime.now();
     return DashboardApi.getStatus();
   }

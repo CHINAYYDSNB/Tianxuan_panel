@@ -45,16 +45,29 @@ class _InitPageState extends ConsumerState<InitPage> {
   void initState() {
     super.initState();
     Future.microtask(() => _checkConfig());
+    // Safety timeout: if config check doesn't complete, go to login
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    });
   }
 
   Future<void> _checkConfig() async {
-    final settings = ref.read(settingsProvider.notifier);
-    await settings.init();
-    if (!mounted) return;
-    if (ref.read(settingsProvider).isConnected) {
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      Navigator.pushReplacementNamed(context, '/login');
+    try {
+      final settings = ref.read(settingsProvider.notifier);
+      await settings.init();
+      if (!mounted) return;
+      if (ref.read(settingsProvider).isConnected) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    } catch (e) {
+      debugPrint('InitPage._checkConfig error: $e');
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
     }
   }
 
