@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import '../services/storage_service.dart';
 
 class LogtoService {
-  static const _clientId = 'pti5kd1hbra1svpzaq9em';
+  static String get _clientId => kIsWeb
+      ? 'pti5kd1hbra1svpzaq9em'
+      : 'wgfs6xi6v7815b0mdfxwn';
   static const _authEndpoint = 'https://logto.lingqi.vip/oidc/auth';
   static const _tokenEndpoint = 'https://logto.lingqi.vip/oidc/token';
   static const _scopes = 'openid profile email';
@@ -80,6 +83,12 @@ class LogtoService {
     final token = await StorageService.instance.getLogtoAccessToken();
     final valid = await StorageService.instance.getLogtoTokenValid();
     return (token?.isNotEmpty == true) && valid;
+  }
+
+  /// 登出 — 清除本地 token
+  static Future<void> logout() async {
+    await StorageService.instance.deleteLogtoTokens();
+    await StorageService.instance.clearLogtoPending();
   }
 
   static String _randomBase64(int length) {

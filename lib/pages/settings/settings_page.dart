@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../providers/health_provider.dart';
 import '../../api/client.dart';
 import '../../services/storage_service.dart';
+import '../../services/logto_service.dart';
 import '../../services/update_service.dart';
 import '../../utils/url_launcher.dart';
 
@@ -327,7 +329,15 @@ class _AboutTabState extends State<_AboutTab> {
             padding: const EdgeInsets.all(24),
             child: Column(
               children: [
-                Icon(Icons.dashboard_customize, size: 64, color: theme.colorScheme.primary),
+                SvgPicture.asset(
+                  'assets/Tianxuan.svg',
+                  width: 72,
+                  height: 72,
+                  colorFilter: ColorFilter.mode(
+                    theme.colorScheme.primary,
+                    BlendMode.srcIn,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 Text('Tianxuan', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
                 Text('1Panel 第三方管理器', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
@@ -421,11 +431,77 @@ class _AboutTabState extends State<_AboutTab> {
             onTap: () => _openUrl(UpdateService.repoUrl),
           ),
         ),
+        const SizedBox(height: 24),
+        _LogtoStatusCard(),
       ],
     );
   }
 
   void _openUrl(String url) => openUrl(url);
+}
+
+class _LogtoStatusCard extends StatefulWidget {
+  @override
+  State<_LogtoStatusCard> createState() => _LogtoStatusCardState();
+}
+
+class _LogtoStatusCardState extends State<_LogtoStatusCard> {
+  bool _loggedIn = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    final ok = await LogtoService.isLoggedIn;
+    if (mounted) setState(() { _loggedIn = ok; _loading = false; });
+  }
+
+  Future<void> _logout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('登出'),
+        content: const Text('确定要登出 Logto 吗？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('登出')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    await LogtoService.logout();
+    if (mounted) {
+      Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const SizedBox.shrink();
+
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          _loggedIn ? Icons.lock : Icons.lock_open,
+          color: _loggedIn ? Colors.green : Colors.grey,
+        ),
+        title: Text(_loggedIn ? 'Logto 已登录' : 'Logto 未登录'),
+        subtitle: Text(_loggedIn ? '点击登出' : '返回首页可登录'),
+        trailing: _loggedIn
+            ? IconButton(
+                icon: const Icon(Icons.logout, color: Colors.red),
+                onPressed: _logout,
+              )
+            : null,
+        onTap: _loggedIn ? _logout : null,
+      ),
+    );
+  }
 }
 
 // ═══════════════════════════════════════════

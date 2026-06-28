@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../services/logto_service.dart';
 import '../services/storage_service.dart';
 import '../services/logto_bridge.dart';
@@ -14,7 +15,8 @@ class LogtoLoginPage extends ConsumerStatefulWidget {
   ConsumerState<LogtoLoginPage> createState() => _LogtoLoginPageState();
 }
 
-class _LogtoLoginPageState extends ConsumerState<LogtoLoginPage> {
+class _LogtoLoginPageState extends ConsumerState<LogtoLoginPage>
+    with WidgetsBindingObserver {
   bool _checking = true;
   bool _loggedIn = false;
   StreamSubscription<Uri>? _linkSub;
@@ -22,13 +24,33 @@ class _LogtoLoginPageState extends ConsumerState<LogtoLoginPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _init();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _linkSub?.cancel();
     super.dispose();
+  }
+
+  /// 从后台切回前台时，检查是否有回调参数 (native deep link)
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !kIsWeb && !_loggedIn) {
+      _checkCallbackOnResume();
+    }
+  }
+
+  Future<void> _checkCallbackOnResume() async {
+    final initial = await LogtoBridge.getInitialLink();
+    if (initial != null && mounted) {
+      await _processCallback(
+        initial.queryParameters['code'],
+        initial.queryParameters['state'],
+      );
+    }
   }
 
   Future<void> _init() async {
@@ -55,7 +77,7 @@ class _LogtoLoginPageState extends ConsumerState<LogtoLoginPage> {
       } catch (_) {}
     }
 
-    // 监听后续深度链接 (native app_links stream / web 不支持)
+    // 监听后续深度链接 (native EventChannel stream)
     if (!kIsWeb) {
       _linkSub = LogtoBridge.onCallback.listen((uri) async {
         final query = uri.queryParameters;
@@ -91,16 +113,23 @@ class _LogtoLoginPageState extends ConsumerState<LogtoLoginPage> {
     return false;
   }
 
-  void _startLogtoLogin() {
-    final pkce = LogtoService.buildPkce();
-    StorageService.instance.saveLogtoPending(pkce.verifier, pkce.state);
-    final url = LogtoService.buildAuthUrl(
-      verifier: pkce.verifier,
-      challenge: pkce.challenge,
-      state: pkce.state,
-      redirectUri: LogtoBridge.callbackUri,
-    );
-    LogtoBridge.redirect(url);
+  Future<void> _startLogtoLogin() async {
+    try {
+      final pkce = LogtoService.buildPkce();
+      await StorageService.instance.saveLogtoPending(pkce.verifier, pkce.state);
+      final url = LogtoService.buildAuthUrl(
+        verifier: pkce.verifier,
+        challenge: pkce.challenge,
+        state: pkce.state,
+        redirectUri: LogtoBridge.callbackUri,
+      );
+      await LogtoBridge.redirect(url);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('打开浏览器失败: $e')),
+      );
+    }
   }
 
   @override
@@ -120,7 +149,11 @@ class _LogtoLoginPageState extends ConsumerState<LogtoLoginPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.lock_outline, size: 80, color: Colors.grey),
+              SvgPicture.asset(
+                'assets/Tianxuan.svg',
+                width: 100,
+                height: 100,
+              ),
               const SizedBox(height: 24),
               Text('天璇 Tianxuan',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(

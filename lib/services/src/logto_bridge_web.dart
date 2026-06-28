@@ -4,7 +4,7 @@ import 'dart:html' as html;
 
 class LogtoBridge {
   /// 跳转到 Logto 授权页
-  static void redirect(String url) {
+  static Future<void> redirect(String url) async {
     html.window.location.href = url;
   }
 
